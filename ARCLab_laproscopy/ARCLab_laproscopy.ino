@@ -1,8 +1,6 @@
+#include <PWMServo.h>
+
 // Motor Pinouts
-
-#include <Servo.h>
-
-Servo myServo;
 
 // Clamp to connect to the tool
 const int clampCW = 7;
@@ -11,6 +9,7 @@ const int clampButton = 8;
 
 // Open and close gripper
 const int gripPWM = 2;
+PWMServo gripServo;
 
 // Lock and unlock position
 const int lockPWM = 3;
@@ -24,9 +23,12 @@ bool click = true;
 bool hold = false;
 
 const int button2 = 27;
+bool servoOn = true;
+bool lastButton = HIGH;
 
 void setup() {
   // Testing LED
+  Serial.begin(115200);
   pinMode(LED, OUTPUT);
 
   // Clamp Screw motor
@@ -34,11 +36,12 @@ void setup() {
   pinMode(clampCCW, OUTPUT);
 
   // Grip motor
-  pinMode(gripPWM, OUTPUT);
+  gripServo.attach(gripPWM);
+  gripServo.write(0);
 
   // Set up buttons
-  pinMode(button1, INPUT);
-  pinMode(button2, INPUT);
+  pinMode(button1, INPUT_PULLUP);
+  pinMode(button2, INPUT_PULLUP);
 
   // Init motors to LOW
   digitalWrite(clampCW, LOW);
@@ -59,22 +62,30 @@ void button_logic() {
 }
 
 void loop() {
+  bool button = digitalRead(button2);
   // put your main code here, to run repeatedly:
-  digitalWrite(LED, HIGH);   // set the LED on
-  if (digitalRead(button1) == HIGH){
-    Serial.println("Button 1 on");
+  
+
+  if (lastButton == HIGH && button == LOW) {
+    servoOn = !servoOn;
   }
 
-  if (digitalRead(button2) == HIGH){
-    Serial.println("Button 2 on");
+  for (int pos = 0; pos <= 180; pos += 5) {
+    gripServo.write(pos);
+    delay(100);
   }
+
+  // Sweep back
+  for (int pos = 180; pos >= 0; pos -= 5) {
+    gripServo.write(pos);
+    delay(100);
+  }
+
+  digitalWrite(LED, HIGH);   // set the LED on
 
   // Turn clockwise
   digitalWrite(clampCW, HIGH);
   digitalWrite(clampCCW, LOW);
-  
-  analogWrite(gripPWM, 100);
-
   delay(1000);                  // wait for a second
   
   digitalWrite(LED, LOW);    // set the LED off
@@ -82,9 +93,6 @@ void loop() {
   // Turn counter clockwise
   digitalWrite(clampCW, LOW);
   digitalWrite(clampCCW, HIGH);  
-
-  analogWrite(gripPWM, 0);
-
   delay(1000);                  // wait for a second
   
   // Turn off
