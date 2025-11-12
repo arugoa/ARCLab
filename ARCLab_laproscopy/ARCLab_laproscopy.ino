@@ -1,101 +1,108 @@
-#include <PWMServo.h>
-
-// Motor Pinouts
-
-// Clamp to connect to the tool
-const int clampCW = 7;
-const int clampCCW = 6;
-const int clampButton = 8;
-
-// Open and close gripper
-const int gripPWM = 2;
-PWMServo gripServo;
-
-// Lock and unlock position
-const int lockPWM = 3;
-
-// LEDs for debugging
-const int LED = 13;
-
-// button
-const int button1 = 26;
-bool click = true;
-bool hold = false;
-
-const int button2 = 27;
-bool servoOn = true;
-bool lastButton = HIGH;
+#include "main.h"
 
 void setup() {
-  // Testing LED
+  // Begin Serial output
   Serial.begin(115200);
+  
+  // Initializing LEDs
   pinMode(LED, OUTPUT);
 
   // Clamp Screw motor
   pinMode(clampCW, OUTPUT);
   pinMode(clampCCW, OUTPUT);
 
-  // Grip motor
+  // Grip servo + init
   gripServo.attach(gripPWM);
-  gripServo.write(0);
+  gripServo.write(init_pos);
 
   // Set up buttons
   pinMode(button1, INPUT_PULLUP);
+  delayMicroseconds(10);
   pinMode(button2, INPUT_PULLUP);
+  delayMicroseconds(10);
 
   // Init motors to LOW
   digitalWrite(clampCW, LOW);
   digitalWrite(clampCCW, LOW);
 }
 
-void button_logic() {
-  // if clicked for a lil bit, turn off/on
-  if (digitalRead(button1) == HIGH) {
-    click = !click;
-    delay(500);
-    // if click is held for half a second, switch ccw and cw
-    if (digitalRead(button1) == HIGH) {
-      click = !click;
-      hold = !hold;
-    }
-  }
-}
 
 void loop() {
-  bool button = digitalRead(button2);
-  // put your main code here, to run repeatedly:
-  
+  reading1 = digitalRead(button1);
+  reading2 = digitalRead(button2);
+  unsigned long currentTime = millis();
 
-  if (lastButton == HIGH && button == LOW) {
-    servoOn = !servoOn;
+  // --- Clamp Button ---
+  if (reading1 == LOW && lastButtonState1 == HIGH) {
+    switchDir = !switchDir;
+    lastDebounceTime1 = currentTime;
   }
 
-  for (int pos = 0; pos <= 180; pos += 5) {
-    gripServo.write(pos);
-    delay(100);
+  if (reading1 == HIGH && lastButtonState1 == LOW) {
+    if (currentTime - lastDebounceTime1 > debounceDelay) {
+      clampOn = !clampOn;
+    }
+  }
+  lastButtonState1 = reading1;
+
+  // --- Servo Button ---
+  if (reading2 == LOW && lastButtonState2 == HIGH) {
+    flip = !flip;
+    lastDebounceTime2 = currentTime;
   }
 
-  // Sweep back
-  for (int pos = 180; pos >= 0; pos -= 5) {
-    gripServo.write(pos);
-    delay(100);
+  if (reading2 == HIGH && lastButtonState2 == LOW) {
+    if (currentTime - lastDebounceTime2 > debounceDelay) {
+      servoOn = !servoOn;
+    }
+  }
+  lastButtonState2 = reading2;
+
+  // --- Control Logic ---
+  if (clampOn) {
+    if (switchDir) {
+      digitalWrite(clampCW, LOW);
+      digitalWrite(clampCCW, HIGH);
+    }
+    else {
+      digitalWrite(clampCW, HIGH);
+      digitalWrite(clampCCW, LOW);
+    }
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(clampCW, LOW);
+    digitalWrite(clampCCW, LOW);
+    digitalWrite(LED, LOW);
   }
 
-  digitalWrite(LED, HIGH);   // set the LED on
+  if (servoOn) {
+    if (flip) {
+      if (curr_pos > 0) {
+        curr_pos -= 5;
+      }
 
-  // Turn clockwise
-  digitalWrite(clampCW, HIGH);
-  digitalWrite(clampCCW, LOW);
-  delay(1000);                  // wait for a second
-  
-  digitalWrite(LED, LOW);    // set the LED off
-  
-  // Turn counter clockwise
-  digitalWrite(clampCW, LOW);
-  digitalWrite(clampCCW, HIGH);  
-  delay(1000);                  // wait for a second
-  
-  // Turn off
-  digitalWrite(clampCW, LOW);
-  digitalWrite(clampCCW, LOW);
+      gripServo.write(curr_pos);
+    }
+    else {
+      if (curr_pos < 180) {
+        curr_pos += 5;
+      }
+
+      gripServo.write(curr_pos);
+    }
+  } else {
+    if (curr_pos > 90) {
+      curr_pos -= 5;
+    }
+    else if (curr_pos < 90) {
+      curr_pos += 5;
+    }
+    else {
+      curr_pos = 90;
+    }
+
+    gripServo.write(curr_pos);
+  }
+
+  delay(50);
 }
