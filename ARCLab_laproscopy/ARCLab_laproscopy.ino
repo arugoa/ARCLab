@@ -3,6 +3,7 @@
 void setup() {
   // Begin Serial output
   Serial.begin(115200);
+  Serial.println("1 to switch servos, 2 to switch direction of screw, 3 to turn off all motors");
   
   // Initializing LEDs
   pinMode(LED, OUTPUT);
@@ -37,6 +38,8 @@ void loop() {
   currentTime = millis();
 
   button_logic();
+
+  keyboard_logic();
 
   control_logic();
 

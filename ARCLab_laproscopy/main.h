@@ -78,6 +78,23 @@ void button_logic() {
   lastButtonState2 = reading2;
 }
 
+void keyboard_logic() {
+   if (Serial.available()) {
+    char key = Serial.read();
+
+    if (key == '1') { // switch servo
+      flip = !flip;
+    }
+    else if (key == '2') { // switch clamp dir
+      switchDir = !switchDir;
+    }
+    else if (key == '3') { // turn em off
+      servoOn = !servoOn;
+      clampOn = !clampOn;
+    }
+  }
+}
+
 void control_logic() {
   // --- Control Logic ---
   if (clampOn) {
